@@ -1,0 +1,58 @@
+ekf_filter_node:
+  ros__parameters:
+    use_sim_time: true
+    print_diagnostics: true
+    debug: false
+    debug_out_file: /tmp/ekf_debug.txt
+    frequency: 50.0
+    sensor_timeout: 0.5  # 顺便调大一点，防止超时
+    two_d_mode: true
+    publish_tf: false
+    publish_acceleration: false
+    predict_to_current_time: true
+    reset_on_time_jump: true
+
+    map_frame: map
+    odom_frame: racecar/odom
+    base_link_frame: racecar/base_link  # 和你的传感器 frame_id 一致
+    world_frame: racecar/odom           # 关键修改：局部融合先使用 odom 帧，防止因为 GPS 没数据而罢工
+
+    # 1. 轮速计配置（融合 X 线速度、Z 轴角速度）
+    odom0: /odom
+    odom0_config: [false, false, false, false, false, false, true, false, false, false, false, true, false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+
+    # 2. IMU 配置（【核心修改】防线分叉：将第6项绝对Yaw改为false，只融合第12项Z轴角速度v_yaw）
+    imu0: /imu/data_raw
+    imu0_config: [false, false, false, false, false, true, false, false, false, false, false, true, false, false, false]
+    imu0_queue_size: 10
+    imu0_differential: false
+    imu0_remove_gravitational_acceleration: true
+    imu0_relative: true
+
+    # 3. GPS 转换后的平面里程计
+    odom1: /odometry/gps_fixed
+    odom1_config: [true, true, false, false, false, false, false, false, false, false, false, false, false, false, false]
+    odom1_queue_size: 10
+    odom1_differential: false
+
+    # ==============================================================================
+    # 4. 【新增】显式声明 15x15 过程噪声协方差矩阵 (Process Noise Covariance)
+    # 适当放大了对角线上关于旋转速度(第12项)和位置变化(1-3项)的容忍度，让转弯改直线时响应更灵敏、不滞后
+    # ==============================================================================
+    process_noise_covariance: [0.05, 0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.05, 0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.06, 0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.03, 0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.03, 0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.4,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.025, 0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.025, 0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.04, 0.0,  0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.01, 0.0,  0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.01, 0.0,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.4,   0.0,  0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,   0.01, 0.0,  0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.01, 0.0,
+                            0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.015]
